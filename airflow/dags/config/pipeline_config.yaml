@@ -1,0 +1,71 @@
+# SEC EDGAR Pipeline Configuration
+
+# GCP Settings
+gcp:
+  project_id: "your-gcp-project-id"
+  region: "us-central1"
+
+# Storage Settings
+storage:
+  raw_bucket: "sec-edgar-dev-raw-data-your-project-id"
+  processed_bucket: "sec-edgar-dev-processed-data-your-project-id"
+  analytics_bucket: "sec-edgar-dev-analytics-data-your-project-id"
+
+# BigQuery Settings
+bigquery:
+  bronze_dataset: "bronze_sec"
+  silver_dataset: "silver_sec"
+  gold_dataset: "gold_sec"
+
+# Dataproc Settings
+dataproc:
+  region: "us-central1"
+  service_account: "sec-dataproc-sa@your-project-id.iam.gserviceaccount.com"
+  runtime_version: "2.0"
+  batch_id_prefix: "sec-edgar-processing"
+
+# Cloud Functions
+cloud_functions:
+  ingestion_function: "sec-data-ingestion"
+  region: "us-central1"
+
+# Pipeline Schedule
+schedule:
+  cron: "0 2 * * *"  # Daily at 2 AM EST (7 AM UTC)
+  timezone: "America/New_York"
+
+# Notification Settings
+notifications:
+  email:
+    enabled: true
+    recipients:
+      - "your-email@example.com"
+    on_failure: true
+    on_success: true
+    on_retry: false
+
+# Retry Settings
+retry:
+  max_attempts: 3
+  delay_minutes: 5
+  exponential_backoff: true
+
+# Data Quality Thresholds
+data_quality:
+  min_companies: 100
+  min_financial_facts: 1000
+  quality_pass_rate: 95.0  # Percentage
+
+# Materialized View Refresh
+materialized_views:
+  - "looker_company_metrics"
+  - "looker_financial_ratios"
+  - "looker_peer_comparison"
+  - "looker_timeseries"
+  refresh_timeout_minutes: 30
+
+# SLA Settings
+sla:
+  ingestion_hours: 1
+  processing_hours: 2
+  total_pipeline_hours: 4
