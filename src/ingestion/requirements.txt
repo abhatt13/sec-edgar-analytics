@@ -1,0 +1,12 @@
+# Cloud Function requirements for SEC data ingestion
+
+# Google Cloud
+google-cloud-storage==2.14.0
+google-cloud-logging==3.9.0
+
+# HTTP and data handling
+requests==2.31.0
+tenacity==8.2.3
+
+# Utilities
+python-dotenv==1.0.0
