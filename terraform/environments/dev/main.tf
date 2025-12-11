@@ -67,45 +67,48 @@ module "bigquery" {
   depends_on = [module.iam]
 }
 
-# Budget Alert
-resource "google_billing_budget" "sec_budget" {
-  billing_account = var.billing_account_id
-  display_name    = "SEC EDGAR Analytics - ${upper(local.environment)} Budget"
-
-  budget_filter {
-    projects = ["projects/${data.google_project.project.number}"]
-    labels = {
-      environment = local.environment
-    }
-  }
-
-  amount {
-    specified_amount {
-      currency_code = "USD"
-      units         = tostring(var.budget_amount)
-    }
-  }
-
-  threshold_rules {
-    threshold_percent = 0.5  # Alert at 50%
-  }
-
-  threshold_rules {
-    threshold_percent = 0.75  # Alert at 75%
-  }
-
-  threshold_rules {
-    threshold_percent = 0.9  # Alert at 90%
-  }
-
-  threshold_rules {
-    threshold_percent = 1.0  # Alert at 100%
-  }
-
-  all_updates_rule {
-    monitoring_notification_channels = var.budget_alert_notification_channels
-  }
-}
+# Budget Alert - Commented out due to ADC authentication issue
+# Set up budget manually in GCP Console: https://console.cloud.google.com/billing/budgets
+# Target: $20/month with alerts at 50%, 75%, 90%, 100%
+#
+# resource "google_billing_budget" "sec_budget" {
+#   billing_account = var.billing_account_id
+#   display_name    = "SEC EDGAR Analytics - ${upper(local.environment)} Budget"
+#
+#   budget_filter {
+#     projects = ["projects/${data.google_project.project.number}"]
+#     labels = {
+#       environment = local.environment
+#     }
+#   }
+#
+#   amount {
+#     specified_amount {
+#       currency_code = "USD"
+#       units         = tostring(var.budget_amount)
+#     }
+#   }
+#
+#   threshold_rules {
+#     threshold_percent = 0.5  # Alert at 50%
+#   }
+#
+#   threshold_rules {
+#     threshold_percent = 0.75  # Alert at 75%
+#   }
+#
+#   threshold_rules {
+#     threshold_percent = 0.9  # Alert at 90%
+#   }
+#
+#   threshold_rules {
+#     threshold_percent = 1.0  # Alert at 100%
+#   }
+#
+#   all_updates_rule {
+#     monitoring_notification_channels = var.budget_alert_notification_channels
+#   }
+# }
 
 # Get project data
 data "google_project" "project" {
