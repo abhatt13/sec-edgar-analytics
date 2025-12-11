@@ -1,0 +1,22 @@
+# Production Environment - Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+
+project_id           = "your-gcp-project-id-prod"
+region               = "us-central1"
+project_owners_email = "your-email@example.com"
+billing_account_id   = "XXXXXX-XXXXXX-XXXXXX"
+
+# Budget configuration
+budget_amount = 500
+
+# Notification channels (create these in GCP first)
+# budget_alert_notification_channels = [
+#   "projects/your-project/notificationChannels/12345678901234567890"
+# ]
+
+labels = {
+  project    = "sec-edgar-analytics"
+  managed_by = "terraform"
+  environment = "prod"
+  team       = "data-engineering"
+}
