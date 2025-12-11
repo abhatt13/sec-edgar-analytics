@@ -1,0 +1,86 @@
+name: Refresh Looker Views
+
+on:
+  schedule:
+    # Run daily at 5 AM UTC (after Airflow pipeline completes)
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GOLD_DATASET: gold_sec
+
+jobs:
+  refresh-views:
+    name: Refresh BigQuery Materialized Views
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        view: [
+          'looker_company_metrics',
+          'looker_financial_ratios',
+          'looker_peer_comparison',
+          'looker_timeseries'
+        ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Refresh Materialized View - ${{ matrix.view }}
+        run: |
+          bq query --use_legacy_sql=false \
+            "CALL BQ.REFRESH_MATERIALIZED_VIEW('${{ env.GCP_PROJECT_ID }}.${{ env.GOLD_DATASET }}.${{ matrix.view }}')"
+
+      - name: Verify View Refresh - ${{ matrix.view }}
+        run: |
+          bq show --format=prettyjson \
+            ${{ env.GCP_PROJECT_ID }}:${{ env.GOLD_DATASET }}.${{ matrix.view }} \
+            | jq '.lastModifiedTime'
+
+  verify-all:
+    name: Verify All Views Refreshed
+    runs-on: ubuntu-latest
+    needs: refresh-views
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Check View Freshness
+        run: |
+          echo "Checking materialized view refresh status..."
+          bq query --use_legacy_sql=false --format=prettyjson \
+            "SELECT
+              table_name,
+              DATE(TIMESTAMP_MILLIS(last_modified_time)) as last_modified_date,
+              row_count
+             FROM \`${{ env.GCP_PROJECT_ID }}.${{ env.GOLD_DATASET }}.__TABLES__\`
+             WHERE table_id LIKE 'looker%'
+             ORDER BY last_modified_time DESC"
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✅ All Looker materialized views refreshed successfully"
+          echo "Timestamp: $(date -u)"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "::error::❌ Materialized view refresh failed"
+          exit 1

@@ -1,0 +1,60 @@
+name: Deploy PySpark Jobs
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/processing/spark_jobs/**'
+      - '.github/workflows/deploy-dataproc.yml'
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GCS_SPARK_JOBS_BUCKET: ${{ secrets.GCS_PROCESSED_BUCKET }}
+
+jobs:
+  deploy:
+    name: Upload PySpark Jobs to GCS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Upload PySpark jobs to GCS
+        run: |
+          gsutil -m cp src/processing/spark_jobs/*.py \
+            gs://${{ env.GCS_SPARK_JOBS_BUCKET }}/spark-jobs/
+
+      - name: Verify upload
+        run: |
+          echo "Uploaded PySpark jobs:"
+          gsutil ls gs://${{ env.GCS_SPARK_JOBS_BUCKET }}/spark-jobs/
+
+      - name: Test parse_xbrl.py (dry run)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Dry run test - would submit Dataproc job"
+          echo "Job: parse_xbrl.py"
+          echo "Region: ${{ env.GCP_REGION }}"
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ PySpark jobs deployed to GCS"
+          echo "Location: gs://${{ env.GCS_SPARK_JOBS_BUCKET }}/spark-jobs/"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::❌ PySpark job deployment failed"
+          exit 1

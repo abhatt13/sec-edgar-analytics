@@ -1,0 +1,71 @@
+name: Deploy Cloud Functions
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/ingestion/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  FUNCTION_NAME: sec-data-ingestion
+
+jobs:
+  deploy:
+    name: Deploy to GCP Cloud Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy Cloud Function
+        run: |
+          cd src/ingestion
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --gen2 \
+            --runtime=python311 \
+            --region=${{ env.GCP_REGION }} \
+            --source=. \
+            --entry-point=ingest_sec_data \
+            --trigger-http \
+            --allow-unauthenticated=false \
+            --service-account=sec-ingestion-cf-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars SEC_USER_AGENT="${{ secrets.SEC_USER_AGENT }}",\
+GCP_PROJECT_ID="${{ env.GCP_PROJECT_ID }}",\
+GCS_RAW_BUCKET="${{ secrets.GCS_RAW_BUCKET }}" \
+            --timeout=540s \
+            --memory=512MB
+
+      - name: Test Cloud Function
+        run: |
+          FUNCTION_URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(serviceConfig.uri)')
+
+          curl -X POST $FUNCTION_URL \
+            -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+            -H "Content-Type: application/json" \
+            -d '{"file_types": ["companyfacts"], "year": 2023}'
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ Cloud Function deployed successfully to ${{ env.GCP_REGION }}"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::❌ Cloud Function deployment failed"
+          exit 1
