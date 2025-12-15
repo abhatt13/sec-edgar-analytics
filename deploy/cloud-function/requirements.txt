@@ -1,0 +1,14 @@
+# Cloud Function requirements for SEC data ingestion
+
+# GCP libraries
+google-cloud-storage==2.14.0
+google-cloud-logging==3.9.0
+
+# HTTP requests
+requests==2.31.0
+
+# Retry logic
+tenacity==8.2.3
+
+# Type hints (for Python 3.11)
+typing-extensions>=4.10.0
